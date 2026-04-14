@@ -48,9 +48,20 @@ st.markdown("""
   h3 { font-size: 0.95rem !important; margin: 0.3rem 0 0.2rem 0 !important; }
   hr { margin: 0.4rem 0 !important; }
   div[data-testid="stRadio"] label { font-size: 14px !important; }
-  div[data-testid="stNumberInput"] input {
-    font-size: 14px !important;
-    padding: 6px 10px !important;
+  /* Glowing download button */
+  div[data-testid="stDownloadButton"] button {
+    background-color: #1a3a5c !important;
+    color: white !important;
+    border: none !important;
+    animation: glow 1.5s ease-in-out infinite !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    padding: 10px 24px !important;
+  }
+  @keyframes glow {
+    0%   { box-shadow: 0 0 5px #c9973a, 0 0 10px #c9973a; }
+    50%  { box-shadow: 0 0 20px #c9973a, 0 0 40px #c9973a; }
+    100% { box-shadow: 0 0 5px #c9973a, 0 0 10px #c9973a; }
   }
 </style>
 """, unsafe_allow_html=True)
