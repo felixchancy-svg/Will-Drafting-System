@@ -222,7 +222,7 @@ with col_preview:
             st.info(
                 f"**立遺囑人：** {t_name} ({t_en_name}) | {t_id} | {t_address} | {marital_status} | {occupation}\n\n"
                 f"**執行人：** {exec_rel}{exec_name} ({exec_en_name}) | {exec_id}\n\n"
-                f"**物業：** {'是 — ' + prop_context.get('property_address','') + ' | 受益人：' + ' / '.join([pb['name'] for pb in prop_beneficiaries if pb['name']]) if has_property else '否'}\n\n"
+                f"**物業：** {'是 — ' + prop_context.get('property_address','') + ' | 受益人：' + ' / '.join([pb['rel'] + pb['name'] + ' ' + pb['share'] for pb in prop_beneficiaries if pb['name']]) if has_property else '否'}\n\n"
                 f"**受益人：** " + " | ".join([f"{b['rel']}{b['name']} {b['share']}" for b in beneficiaries if b['name']])
             )
 
