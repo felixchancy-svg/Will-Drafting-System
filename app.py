@@ -169,21 +169,23 @@ if has_property:
 
     num_pb = st.number_input("物業受益人人數", min_value=1, step=1, value=1)
 
-    pbh1, pbh2, pbh3, pbh4, pbh5, _pbspacer = st.columns([2, 2, 2, 2, 2, 1])
+    pbh1, pbh2, pbh3, pbh4, pbh5, pbh6, _pbspacer = st.columns([2, 2, 2, 1, 2, 2, 1])
     with pbh1: st.markdown("<span style='font-size:13px;font-weight:600'>分配比例 *</span>", unsafe_allow_html=True)
     with pbh2: st.markdown("<span style='font-size:13px;font-weight:600'>中文姓名 *</span>", unsafe_allow_html=True)
     with pbh3: st.markdown("<span style='font-size:13px;font-weight:600'>英文姓名 *</span>", unsafe_allow_html=True)
-    with pbh4: st.markdown("<span style='font-size:13px;font-weight:600'>身份證號碼 *</span>", unsafe_allow_html=True)
-    with pbh5: st.markdown("<span style='font-size:13px;font-weight:600'>與立遺囑人關係 *</span>", unsafe_allow_html=True)
+    with pbh4: st.markdown("<span style='font-size:13px;font-weight:600'>年齡 *</span>", unsafe_allow_html=True)
+    with pbh5: st.markdown("<span style='font-size:13px;font-weight:600'>身份證號碼 *</span>", unsafe_allow_html=True)
+    with pbh6: st.markdown("<span style='font-size:13px;font-weight:600'>與立遺囑人關係 *</span>", unsafe_allow_html=True)
 
     for i in range(int(num_pb)):
-        pbc1, pbc2, pbc3, pbc4, pbc5, _pbspacer2 = st.columns([2, 2, 2, 2, 2, 1])
+        pbc1, pbc2, pbc3, pbc4, pbc5, pbc6, _pbspacer2 = st.columns([2, 2, 2, 1, 2, 2, 1])
         with pbc1: pb_share = st.text_input(f"pb_s{i}", placeholder="全部/1/2/50%", key=f"pb_s{i}", label_visibility="collapsed")
         with pbc2: pb_name = st.text_input(f"pb_n{i}", key=f"pb_n{i}", label_visibility="collapsed")
         with pbc3: pb_en = st.text_input(f"pb_e{i}", key=f"pb_e{i}", label_visibility="collapsed")
-        with pbc4: pb_id = st.text_input(f"pb_i{i}", key=f"pb_i{i}", label_visibility="collapsed")
-        with pbc5: pb_rel = st.text_input(f"pb_r{i}", key=f"pb_r{i}", label_visibility="collapsed")
-        prop_beneficiaries.append({'share': pb_share, 'name': pb_name, 'en_name': pb_en, 'id': pb_id, 'rel': pb_rel})
+        with pbc4: pb_age = st.number_input(f"pb_a{i}", min_value=0, max_value=120, step=1, key=f"pb_a{i}", label_visibility="collapsed")
+        with pbc5: pb_id = st.text_input(f"pb_i{i}", key=f"pb_i{i}", label_visibility="collapsed")
+        with pbc6: pb_rel = st.text_input(f"pb_r{i}", key=f"pb_r{i}", label_visibility="collapsed")
+        prop_beneficiaries.append({'share': pb_share, 'name': pb_name, 'en_name': pb_en, 'id': pb_id, 'rel': pb_rel, 'age': int(pb_age)})
 
     prop_context = {
         'has_property': True,
@@ -276,8 +278,9 @@ with col_generate:
             st.error("❌ 請確認執行人已年滿 21 歲方可生成遺囑。")
             st.stop()
 
-        # Minor beneficiary check
-        minor_beneficiaries = [b for b in beneficiaries if b['name'] and b['age'] > 0 and b['age'] < 18]
+        # Minor beneficiary check (both property and residual)
+        all_beneficiaries_check = beneficiaries + (prop_beneficiaries if has_property else [])
+        minor_beneficiaries = [b for b in all_beneficiaries_check if b['name'] and b['age'] > 0 and b['age'] < 18]
         if minor_beneficiaries:
             names = ', '.join([b['name'] for b in minor_beneficiaries])
             st.error(f"❌ 以下受益人未滿 18 歲：{names}。如受益人未成年，須委任兩名執行人，請聯絡立遺囑人安排第二執行人，並聯絡系統管理員處理。")
