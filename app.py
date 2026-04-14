@@ -267,9 +267,15 @@ with col_generate:
                 if not pb['id']: errors.append(f"物業受益人{i+1}身份證")
                 if not pb['rel']: errors.append(f"物業受益人{i+1}關係")
                 if not pb['share']: errors.append(f"物業受益人{i+1}分配比例")
+                if pb['name'] and int(pb.get('age', 0)) == 0: errors.append(f"物業受益人{i+1}年齡")
         for i, b in enumerate(beneficiaries):
             if not b['name']: errors.append(f"受益人{i+1}姓名")
             if not b['share']: errors.append(f"受益人{i+1}分配比例")
+            if int(b.get('age', 0)) == 0: errors.append(f"受益人{i+1}年齡")
+        if has_property:
+            for i, pb in enumerate(prop_beneficiaries):
+                if int(pb.get('age', 0)) == 0: errors.append(f"物業受益人{i+1}年齡")
+            if b['name'] and int(b.get('age', 0)) == 0: errors.append(f"受益人{i+1}年齡")
         if errors:
             st.error(f"❌ 未填寫：{', '.join(errors)}")
             st.stop()
@@ -279,10 +285,16 @@ with col_generate:
             st.stop()
 
         # Minor beneficiary check (both property and residual)
-        all_beneficiaries_check = list(beneficiaries) + (list(prop_beneficiaries) if has_property else [])
-        minor_beneficiaries = [b for b in all_beneficiaries_check if b['name'] and int(b.get('age', 0)) > 0 and int(b.get('age', 0)) < 18]
+        minor_beneficiaries = []
+        for b in beneficiaries:
+            if b['name'] and int(b.get('age', 0)) < 18:
+                minor_beneficiaries.append(b['name'])
+        if has_property:
+            for pb in prop_beneficiaries:
+                if pb['name'] and int(pb.get('age', 0)) < 18:
+                    minor_beneficiaries.append(pb['name'] + '（物業受益人）')
         if minor_beneficiaries:
-            names = ', '.join([b['name'] for b in minor_beneficiaries])
+            names = ', '.join(minor_beneficiaries)
             st.error(f"❌ 以下受益人未滿 18 歲：{names}。如受益人未成年，須委任兩名執行人，請聯絡立遺囑人安排第二執行人，並聯絡系統管理員處理。")
             st.stop()
         hkid_errors = []
