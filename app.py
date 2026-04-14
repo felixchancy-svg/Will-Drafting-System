@@ -108,7 +108,7 @@ with st.sidebar:
 # 介面設計
 # ==========================================
 st.set_page_config(page_title="社區平安紙系統", layout="wide")
-st.title("⚖️ 社區平安紙自動化草擬系統")
+st.title("⚖️ 社區平安紙草擬系統")
 
 # ── Section 1: Testator ───────────────────────────────────────────────
 st.header("1. 立遺囑人個人資料")
