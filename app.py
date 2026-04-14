@@ -279,8 +279,8 @@ with col_generate:
             st.stop()
 
         # Minor beneficiary check (both property and residual)
-        all_beneficiaries_check = beneficiaries + (prop_beneficiaries if has_property else [])
-        minor_beneficiaries = [b for b in all_beneficiaries_check if b['name'] and b['age'] > 0 and b['age'] < 18]
+        all_beneficiaries_check = list(beneficiaries) + (list(prop_beneficiaries) if has_property else [])
+        minor_beneficiaries = [b for b in all_beneficiaries_check if b['name'] and int(b.get('age', 0)) > 0 and int(b.get('age', 0)) < 18]
         if minor_beneficiaries:
             names = ', '.join([b['name'] for b in minor_beneficiaries])
             st.error(f"❌ 以下受益人未滿 18 歲：{names}。如受益人未成年，須委任兩名執行人，請聯絡立遺囑人安排第二執行人，並聯絡系統管理員處理。")
