@@ -108,7 +108,7 @@ with st.sidebar:
 # 介面設計
 # ==========================================
 st.set_page_config(page_title="社區平安紙系統", layout="wide")
-st.title("⚖️ 社區平安紙草擬系統")
+st.title("⚖️ 社區平安紙自動化草擬系統")
 
 # ── Section 1: Testator ───────────────────────────────────────────────
 st.header("1. 立遺囑人個人資料")
@@ -148,21 +148,39 @@ st.header("3. 資產分配安排")
 has_property = st.checkbox("是否有特定物業遺贈？")
 
 prop_context = {}
+prop_beneficiaries = []
 if has_property:
     st.subheader("物業遺贈細節")
-    pa1, pa2, pa3, pa4, pa5, _spacer3 = st.columns([3, 2, 2, 2, 2, 1])
+    pa1, _spacer3 = st.columns([4, 3])
     with pa1: p_addr = st.text_input("物業地址 *")
-    with pa2: p_b_name = st.text_input("受益人中文姓名 *")
-    with pa3: p_b_en_name = st.text_input("受益人英文姓名 *")
-    with pa4: p_b_id = st.text_input("受益人身份證號碼 *")
-    with pa5: p_b_rel = st.text_input("與立遺囑人關係 *")
+
+    num_pb = st.number_input("物業受益人人數", min_value=1, step=1, value=1)
+
+    pbh1, pbh2, pbh3, pbh4, pbh5, _pbspacer = st.columns([2, 2, 2, 2, 2, 1])
+    with pbh1: st.markdown("<span style='font-size:13px;font-weight:600'>分配比例 *</span>", unsafe_allow_html=True)
+    with pbh2: st.markdown("<span style='font-size:13px;font-weight:600'>中文姓名 *</span>", unsafe_allow_html=True)
+    with pbh3: st.markdown("<span style='font-size:13px;font-weight:600'>英文姓名 *</span>", unsafe_allow_html=True)
+    with pbh4: st.markdown("<span style='font-size:13px;font-weight:600'>身份證號碼 *</span>", unsafe_allow_html=True)
+    with pbh5: st.markdown("<span style='font-size:13px;font-weight:600'>與立遺囑人關係 *</span>", unsafe_allow_html=True)
+
+    for i in range(int(num_pb)):
+        pbc1, pbc2, pbc3, pbc4, pbc5, _pbspacer2 = st.columns([2, 2, 2, 2, 2, 1])
+        with pbc1: pb_share = st.text_input(f"pb_s{i}", placeholder="全部/1/2/50%", key=f"pb_s{i}", label_visibility="collapsed")
+        with pbc2: pb_name = st.text_input(f"pb_n{i}", key=f"pb_n{i}", label_visibility="collapsed")
+        with pbc3: pb_en = st.text_input(f"pb_e{i}", key=f"pb_e{i}", label_visibility="collapsed")
+        with pbc4: pb_id = st.text_input(f"pb_i{i}", key=f"pb_i{i}", label_visibility="collapsed")
+        with pbc5: pb_rel = st.text_input(f"pb_r{i}", key=f"pb_r{i}", label_visibility="collapsed")
+        prop_beneficiaries.append({'share': pb_share, 'name': pb_name, 'en_name': pb_en, 'id': pb_id, 'rel': pb_rel})
+
     prop_context = {
         'has_property': True,
         'property_address': p_addr,
-        'prop_beneficiary_rel': p_b_rel,
-        'prop_beneficiary_name': p_b_name,
-        'prop_beneficiary_en_name': p_b_en_name,
-        'prop_beneficiary_id': p_b_id
+        'prop_beneficiaries': prop_beneficiaries,
+        # Keep old single fields for backward compat
+        'prop_beneficiary_rel': prop_beneficiaries[0]['rel'] if prop_beneficiaries else '',
+        'prop_beneficiary_name': prop_beneficiaries[0]['name'] if prop_beneficiaries else '',
+        'prop_beneficiary_en_name': prop_beneficiaries[0]['en_name'] if prop_beneficiaries else '',
+        'prop_beneficiary_id': prop_beneficiaries[0]['id'] if prop_beneficiaries else '',
     }
 
 st.subheader("財產分配 (剩餘財產)")
@@ -204,7 +222,7 @@ with col_preview:
             st.info(
                 f"**立遺囑人：** {t_name} ({t_en_name}) | {t_id} | {t_address} | {marital_status} | {occupation}\n\n"
                 f"**執行人：** {exec_rel}{exec_name} ({exec_en_name}) | {exec_id}\n\n"
-                f"**物業：** {'是 — ' + prop_context.get('property_address','') if has_property else '否'}\n\n"
+                f"**物業：** {'是 — ' + prop_context.get('property_address','') + ' | 受益人：' + ' / '.join([pb['name'] for pb in prop_beneficiaries if pb['name']]) if has_property else '否'}\n\n"
                 f"**受益人：** " + " | ".join([f"{b['rel']}{b['name']} {b['share']}" for b in beneficiaries if b['name']])
             )
 
@@ -225,10 +243,12 @@ with col_generate:
         if occ_option == "其他" and not occupation: errors.append("職業")
         if has_property:
             if not p_addr: errors.append("物業地址")
-            if not p_b_name: errors.append("物業受益人姓名")
-            if not p_b_en_name: errors.append("物業受益人英文姓名")
-            if not p_b_id: errors.append("物業受益人身份證")
-            if not p_b_rel: errors.append("物業受益人關係")
+            for i, pb in enumerate(prop_beneficiaries):
+                if not pb['name']: errors.append(f"物業受益人{i+1}姓名")
+                if not pb['en_name']: errors.append(f"物業受益人{i+1}英文姓名")
+                if not pb['id']: errors.append(f"物業受益人{i+1}身份證")
+                if not pb['rel']: errors.append(f"物業受益人{i+1}關係")
+                if not pb['share']: errors.append(f"物業受益人{i+1}分配比例")
         for i, b in enumerate(beneficiaries):
             if not b['name']: errors.append(f"受益人{i+1}姓名")
             if not b['share']: errors.append(f"受益人{i+1}分配比例")
@@ -240,12 +260,23 @@ with col_generate:
         hkid_errors = []
         if not validate_hkid(t_id): hkid_errors.append(f"立遺囑人：{t_id}")
         if not validate_hkid(exec_id): hkid_errors.append(f"執行人：{exec_id}")
-        if has_property and p_b_id and not validate_hkid(p_b_id): hkid_errors.append(f"物業受益人：{p_b_id}")
+        if has_property:
+            for i, pb in enumerate(prop_beneficiaries):
+                if pb['id'] and not validate_hkid(pb['id']): hkid_errors.append(f"物業受益人{i+1}：{pb['id']}")
         for i, b in enumerate(beneficiaries):
             if b['id'] and not validate_hkid(b['id']): hkid_errors.append(f"受益人{i+1}：{b['id']}")
         if hkid_errors:
             st.error("❌ 身份證格式有誤 (應為 A123456(7))：\n" + "\n".join(hkid_errors))
             st.stop()
+
+        # Property beneficiary share validation
+        if has_property and len(prop_beneficiaries) > 1:
+            pb_skip = len(prop_beneficiaries) == 1 and prop_beneficiaries[0]['share'] in ['全部', 'all', 'ALL']
+            if not pb_skip:
+                pb_total = sum(parse_share(pb['share']) for pb in prop_beneficiaries)
+                if abs(pb_total - 1.0) > 0.0001:
+                    st.error(f"❌ 物業受益人比例總和為 {pb_total*100:.1f}%，必須等於 100%。")
+                    st.stop()
 
         # Share validation
         all_shares = [b['share'].strip() for b in beneficiaries]
