@@ -152,6 +152,8 @@ with e2: exec_en_name = st.text_input("執行人英文姓名 *")
 with e3: exec_id = st.text_input("執行人身份證號碼 *")
 with e4: exec_rel = st.text_input("與立遺囑人關係 *", placeholder="如：妻子")
 
+exec_over_21 = st.checkbox("✅ 確認執行人已年滿 21 歲 / Confirm executor is aged 21 or above *")
+
 st.divider()
 
 # ── Section 3: Distribution ───────────────────────────────────────────
@@ -198,21 +200,23 @@ st.subheader("財產分配 (剩餘財產)")
 num_b = st.number_input("受益人人數", min_value=1, step=1, value=1)
 beneficiaries = []
 
-bh1, bh2, bh3, bh4, bh5, _bspacer = st.columns([2, 2, 2, 2, 2, 1])
+bh1, bh2, bh3, bh4, bh5, bh6, _bspacer = st.columns([2, 2, 2, 2, 1, 2, 1])
 with bh1: st.markdown("<span style='font-size:13px;font-weight:600'>分配比例 *</span>", unsafe_allow_html=True)
 with bh2: st.markdown("<span style='font-size:13px;font-weight:600'>中文姓名 *</span>", unsafe_allow_html=True)
 with bh3: st.markdown("<span style='font-size:13px;font-weight:600'>英文姓名</span>", unsafe_allow_html=True)
 with bh4: st.markdown("<span style='font-size:13px;font-weight:600'>身份證號碼</span>", unsafe_allow_html=True)
-with bh5: st.markdown("<span style='font-size:13px;font-weight:600'>與立遺囑人關係</span>", unsafe_allow_html=True)
+with bh5: st.markdown("<span style='font-size:13px;font-weight:600'>年齡 *</span>", unsafe_allow_html=True)
+with bh6: st.markdown("<span style='font-size:13px;font-weight:600'>與立遺囑人關係</span>", unsafe_allow_html=True)
 
 for i in range(int(num_b)):
-    bc1, bc2, bc3, bc4, bc5, _bspacer2 = st.columns([2, 2, 2, 2, 2, 1])
+    bc1, bc2, bc3, bc4, bc5, bc6, _bspacer2 = st.columns([2, 2, 2, 2, 1, 2, 1])
     with bc1: b_share = st.text_input(f"s{i}", placeholder="全部/1/2/50%", key=f"s{i}", label_visibility="collapsed")
     with bc2: b_name = st.text_input(f"n{i}", key=f"n{i}", label_visibility="collapsed")
     with bc3: b_en = st.text_input(f"e{i}", key=f"e{i}", label_visibility="collapsed")
     with bc4: b_id = st.text_input(f"i{i}", key=f"i{i}", label_visibility="collapsed")
-    with bc5: b_rel = st.text_input(f"r{i}", key=f"r{i}", label_visibility="collapsed")
-    beneficiaries.append({'share': b_share, 'name': b_name, 'en_name': b_en, 'id': b_id, 'rel': b_rel})
+    with bc5: b_age = st.number_input(f"a{i}", min_value=0, max_value=120, step=1, key=f"a{i}", label_visibility="collapsed")
+    with bc6: b_rel = st.text_input(f"r{i}", key=f"r{i}", label_visibility="collapsed")
+    beneficiaries.append({'share': b_share, 'name': b_name, 'en_name': b_en, 'id': b_id, 'rel': b_rel, 'age': int(b_age)})
 
 st.divider()
 
@@ -234,7 +238,7 @@ with col_preview:
                 f"**立遺囑人：** {t_name} ({t_en_name}) | {t_id} | {t_address} | {marital_status} | {occupation}\n\n"
                 f"**執行人：** {exec_rel}{exec_name} ({exec_en_name}) | {exec_id}\n\n"
                 f"**物業：** {'是 — ' + prop_context.get('property_address','') + ' | 受益人：' + ' / '.join([pb['rel'] + pb['name'] + ' ' + pb['share'] for pb in prop_beneficiaries if pb['name']]) if has_property else '否'}\n\n"
-                f"**受益人：** " + " | ".join([f"{b['rel']}{b['name']} {b['share']}" for b in beneficiaries if b['name']])
+                f"**受益人：** " + " | ".join([f"{b['rel']}{b['name']} {b['share']} (年齡:{b['age']})" for b in beneficiaries if b['name']])
             )
 
 with col_generate:
@@ -251,6 +255,7 @@ with col_generate:
         if not exec_en_name: errors.append("執行人英文姓名")
         if not exec_id: errors.append("執行人身份證號碼")
         if not exec_rel: errors.append("執行人關係")
+        if not exec_over_21: errors.append("確認執行人年齡")
         if occ_option == "其他" and not occupation: errors.append("職業")
         if has_property:
             if not p_addr: errors.append("物業地址")
@@ -267,7 +272,16 @@ with col_generate:
             st.error(f"❌ 未填寫：{', '.join(errors)}")
             st.stop()
 
-        # HKID validation
+        if not exec_over_21:
+            st.error("❌ 請確認執行人已年滿 21 歲方可生成遺囑。")
+            st.stop()
+
+        # Minor beneficiary check
+        minor_beneficiaries = [b for b in beneficiaries if b['name'] and b['age'] > 0 and b['age'] < 18]
+        if minor_beneficiaries:
+            names = ', '.join([b['name'] for b in minor_beneficiaries])
+            st.error(f"❌ 以下受益人未滿 18 歲：{names}。如受益人未成年，須委任兩名執行人，請聯絡立遺囑人安排第二執行人，並聯絡系統管理員處理。")
+            st.stop()
         hkid_errors = []
         if not validate_hkid(t_id): hkid_errors.append(f"立遺囑人：{t_id}")
         if not validate_hkid(exec_id): hkid_errors.append(f"執行人：{exec_id}")
