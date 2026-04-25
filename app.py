@@ -318,6 +318,56 @@ with col_generate:
                     st.error(f"❌ 物業受益人比例總和為 {pb_total*100:.1f}%，必須等於 100%。")
                     st.stop()
 
+        # ── Cross-check executor vs beneficiaries ─────────────────
+        all_persons = []
+        # Add executor
+        all_persons.append({'label': '執行人', 'name': exec_name, 'en_name': exec_en_name, 'id': exec_id})
+        # Add all beneficiaries
+        for i, b in enumerate(beneficiaries):
+            if b['name'] and b['id']:
+                all_persons.append({'label': f'受益人{i+1}', 'name': b['name'], 'en_name': b['en_name'], 'id': b['id']})
+        # Add property beneficiaries
+        if has_property:
+            for i, pb in enumerate(prop_beneficiaries):
+                if pb['name'] and pb['id']:
+                    all_persons.append({'label': f'物業受益人{i+1}', 'name': pb['name'], 'en_name': pb['en_name'], 'id': pb['id']})
+
+        mismatch_errors = []
+        # Check every pair
+        for i in range(len(all_persons)):
+            for j in range(i+1, len(all_persons)):
+                a = all_persons[i]
+                b = all_persons[j]
+                a_id = a['id'].upper().strip()
+                b_id = b['id'].upper().strip()
+                a_name = a['name'].strip()
+                b_name = b['name'].strip()
+                a_en = a['en_name'].strip().upper()
+                b_en = b['en_name'].strip().upper()
+
+                # Same ID but different Chinese name
+                if a_id == b_id and a_name != b_name:
+                    mismatch_errors.append(f"⚠ {a['label']}（{a_name}）與 {b['label']}（{b_name}）身份證號碼相同（{a['id']}）但中文姓名不同，請核實。")
+                # Same ID but different English name
+                if a_id == b_id and a_en and b_en and a_en != b_en:
+                    mismatch_errors.append(f"⚠ {a['label']}（{a['en_name']}）與 {b['label']}（{b['en_name']}）身份證號碼相同（{a['id']}）但英文姓名不同，請核實。")
+                # Same Chinese name but different ID
+                if a_name == b_name and a_id != b_id:
+                    mismatch_errors.append(f"⚠ {a['label']}（{a_name}）與 {b['label']}（{b_name}）中文姓名相同但身份證號碼不同（{a['id']} vs {b['id']}），請核實。")
+                # Same Chinese name but different English name
+                if a_name == b_name and a_en and b_en and a_en != b_en:
+                    mismatch_errors.append(f"⚠ {a['label']}（{a_name}）與 {b['label']}（{b_name}）中文姓名相同但英文姓名不同（{a['en_name']} vs {b['en_name']}），請核實。")
+                # Same English name but different ID
+                if a_en and b_en and a_en == b_en and a_id != b_id:
+                    mismatch_errors.append(f"⚠ {a['label']}（{a['en_name']}）與 {b['label']}（{b['en_name']}）英文姓名相同但身份證號碼不同（{a['id']} vs {b['id']}），請核實。")
+                # Same English name but different Chinese name
+                if a_en and b_en and a_en == b_en and a_name != b_name:
+                    mismatch_errors.append(f"⚠ {a['label']}（{a['en_name']}）與 {b['label']}（{b['en_name']}）英文姓名相同但中文姓名不同（{a_name} vs {b_name}），請核實。")
+
+        if mismatch_errors:
+            st.error("❌ 發現資料不一致，請核實後再生成：\n\n" + "\n\n".join(mismatch_errors))
+            st.stop()
+
         # Share validation
         all_shares = [b['share'].strip() for b in beneficiaries]
         skip_check = len(beneficiaries) == 1 and all_shares[0] in ['全部', 'all', 'ALL']
