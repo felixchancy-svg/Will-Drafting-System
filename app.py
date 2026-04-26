@@ -89,9 +89,15 @@ def parse_share(share_str):
     except:
         return 0
 
-def validate_hkid(hkid):
-    pattern = r'^[A-Z]{1,2}\d{6}\([0-9A]\)$'
-    return re.match(pattern, hkid.strip().upper()) is not None
+def clear_form():
+    """Clear all form fields from session state"""
+    keys_to_clear = [k for k in st.session_state.keys()
+                     if k not in ['generated', 'downloaded', 'confirm_reset', 'file_name', 'file_data']]
+    for key in keys_to_clear:
+        del st.session_state[key]
+    st.session_state.generated = False
+    st.session_state.downloaded = False
+    st.session_state.confirm_reset = False
 
 # ==========================================
 # Sidebar
@@ -425,13 +431,11 @@ with col_generate:
             st.error(f"系統出錯：{e}")
 
 with col_clear:
-    if st.button("🔄 清除所有欄位"):
+    if st.button("🔄 清除所有欄位", disabled=form_locked):
         if st.session_state.generated and not st.session_state.downloaded:
             st.session_state.confirm_reset = True
         else:
-            st.session_state.generated = False
-            st.session_state.downloaded = False
-            st.session_state.confirm_reset = False
+            clear_form()
             st.rerun()
 
 # ── Download banner (prominent, full width) ───────────────────────────
@@ -464,8 +468,8 @@ if st.session_state.generated and not st.session_state.downloaded:
         type="primary"
     )
     if dl:
-        st.session_state.downloaded = True
-        st.success("✅ 已下載！您現在可以清除表格或生成下一份平安紙。")
+        clear_form()
+        st.rerun()
 
 elif st.session_state.generated and st.session_state.downloaded:
     st.success("✅ 已下載！您現在可以清除表格或生成下一份平安紙。")
@@ -502,7 +506,5 @@ if st.session_state.confirm_reset:
             st.rerun()
     with conf2:
         if st.button("🗑 確定清除（不下載）", use_container_width=True):
-            st.session_state.generated = False
-            st.session_state.downloaded = False
-            st.session_state.confirm_reset = False
+            clear_form()
             st.rerun()
