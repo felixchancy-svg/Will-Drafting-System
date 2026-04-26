@@ -74,6 +74,8 @@ if 'downloaded' not in st.session_state:
     st.session_state.downloaded = False
 if 'confirm_reset' not in st.session_state:
     st.session_state.confirm_reset = False
+if 'form_key' not in st.session_state:
+    st.session_state.form_key = 0
 
 # Lock form if generated but not yet downloaded
 form_locked = st.session_state.generated and not st.session_state.downloaded
@@ -95,10 +97,10 @@ def validate_hkid(hkid):
 
 def clear_form():
     """Clear all form fields from session state"""
-    keys_to_clear = [k for k in st.session_state.keys()
-                     if k not in ['generated', 'downloaded', 'confirm_reset', 'file_name', 'file_data']]
-    for key in keys_to_clear:
-        del st.session_state[key]
+    preserve = {'generated', 'downloaded', 'confirm_reset', 'file_name', 'file_data', 'form_key'}
+    for key in list(st.session_state.keys()):
+        if key not in preserve:
+            del st.session_state[key]
     st.session_state.generated = False
     st.session_state.downloaded = False
     st.session_state.confirm_reset = False
@@ -139,7 +141,7 @@ title_col, ver_col = st.columns([10, 1])
 with title_col:
     st.title("⚖️ 社區平安紙自動化草擬系統")
 with ver_col:
-    st.markdown("<div style='text-align:right;color:#888;font-size:12px;padding-top:20px'>20260426v1</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:right;color:#888;font-size:12px;padding-top:20px'>20260426v2</div>", unsafe_allow_html=True)
 
 if form_locked:
     st.markdown("""
@@ -152,40 +154,40 @@ if form_locked:
 st.header("1. 立遺囑人個人資料")
 c1, c2, c3, c4 = st.columns([2, 2, 2, 5])
 with c1:
-    t_name = st.text_input("中文姓名 *", disabled=form_locked)
-    t_id = st.text_input("身份證號碼 * (如: A123456(7))", disabled=form_locked)
+    t_name = st.text_input("中文姓名 *", key="t_name", disabled=form_locked)
+    t_id = st.text_input("身份證號碼 * (如: A123456(7))", key="t_id", disabled=form_locked)
 with c2:
-    t_en_name = st.text_input("英文姓名 *", disabled=form_locked)
-    marital_status = st.selectbox("婚姻狀況 *", ["未婚", "已婚", "離婚", "喪偶"], disabled=form_locked)
+    t_en_name = st.text_input("英文姓名 *", key="t_en_name", disabled=form_locked)
+    marital_status = st.selectbox("婚姻狀況 *", ["未婚", "已婚", "離婚", "喪偶"], key="marital_status", disabled=form_locked)
 with c3:
     st.markdown("<span style='font-size:13px;font-weight:600'>職業 *</span>", unsafe_allow_html=True)
     occ_option = st.radio("職業", ["退休", "無業", "家庭主婦", "其他"],
-                          horizontal=True, label_visibility="collapsed")
+                          horizontal=True, label_visibility="collapsed", key="occ_option", disabled=form_locked)
     if occ_option == "其他":
-        occupation = st.text_input("請輸入職業", placeholder="如：教師、律師", disabled=form_locked)
+        occupation = st.text_input("請輸入職業", placeholder="如：教師、律師", key="occupation_other", disabled=form_locked)
     else:
         occupation = occ_option
         st.empty()
 with c4:
-    t_address = st.text_input("現居地址 *", disabled=form_locked)
+    t_address = st.text_input("現居地址 *", key="t_address", disabled=form_locked)
 
 st.divider()
 
 # ── Section 2: Executor ───────────────────────────────────────────────
 st.header("2. 遺囑執行人資料")
 e1, e2, e3, e4, _spacer2 = st.columns([2, 2, 2, 2, 3])
-with e1: exec_name = st.text_input("執行人中文姓名 *", disabled=form_locked)
-with e2: exec_en_name = st.text_input("執行人英文姓名 *", disabled=form_locked)
-with e3: exec_id = st.text_input("執行人身份證號碼 *", disabled=form_locked)
-with e4: exec_rel = st.text_input("與立遺囑人關係 *", placeholder="如：妻子", disabled=form_locked)
+with e1: exec_name = st.text_input("執行人中文姓名 *", key="exec_name", disabled=form_locked)
+with e2: exec_en_name = st.text_input("執行人英文姓名 *", key="exec_en_name", disabled=form_locked)
+with e3: exec_id = st.text_input("執行人身份證號碼 *", key="exec_id", disabled=form_locked)
+with e4: exec_rel = st.text_input("與立遺囑人關係 *", placeholder="如：妻子", key="exec_rel", disabled=form_locked)
 
-exec_over_21 = st.checkbox("✅ 確認執行人已年滿 21 歲 / Confirm executor is aged 21 or above *", disabled=form_locked)
+exec_over_21 = st.checkbox("✅ 確認執行人已年滿 21 歲 / Confirm executor is aged 21 or above *", key="exec_over_21", disabled=form_locked)
 
 st.divider()
 
 # ── Section 3: Distribution ───────────────────────────────────────────
 st.header("3. 資產分配安排")
-has_property = st.checkbox("是否有特定物業遺贈？", disabled=form_locked)
+has_property = st.checkbox("是否有特定物業遺贈？", key="has_property", disabled=form_locked)
 
 prop_context = {}
 prop_beneficiaries = []
@@ -206,12 +208,12 @@ if has_property:
 
     for i in range(int(num_pb)):
         pbc1, pbc2, pbc3, pbc4, pbc5, pbc6, _pbspacer2 = st.columns([2, 2, 2, 1, 2, 2, 1])
-        with pbc1: pb_share = st.text_input(f"pb_s{i}", placeholder="全部/1/2/50%", key=f"pb_s{i}", label_visibility="collapsed", disabled=form_locked)
-        with pbc2: pb_name = st.text_input(f"pb_n{i}", key=f"pb_n{i}", label_visibility="collapsed", disabled=form_locked)
-        with pbc3: pb_en = st.text_input(f"pb_e{i}", key=f"pb_e{i}", label_visibility="collapsed", disabled=form_locked)
-        with pbc4: pb_age = st.number_input(f"pb_a{i}", min_value=0, max_value=120, step=1, key=f"pb_a{i}", label_visibility="collapsed", disabled=form_locked)
-        with pbc5: pb_id = st.text_input(f"pb_i{i}", key=f"pb_i{i}", label_visibility="collapsed", disabled=form_locked)
-        with pbc6: pb_rel = st.text_input(f"pb_r{i}", key=f"pb_r{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc1: pb_share = st.text_input(f"pb_s{i}", placeholder="全部/1/2/50%", key=f"{st.session_state.form_key}_pb_s{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc2: pb_name = st.text_input(f"pb_n{i}", key=f"{st.session_state.form_key}_pb_n{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc3: pb_en = st.text_input(f"pb_e{i}", key=f"{st.session_state.form_key}_pb_e{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc4: pb_age = st.number_input(f"pb_a{i}", min_value=0, max_value=120, step=1, key=f"{st.session_state.form_key}_pb_a{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc5: pb_id = st.text_input(f"pb_i{i}", key=f"{st.session_state.form_key}_pb_i{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc6: pb_rel = st.text_input(f"pb_r{i}", key=f"{st.session_state.form_key}_pb_r{i}", label_visibility="collapsed", disabled=form_locked)
         prop_beneficiaries.append({'share': pb_share, 'name': pb_name, 'en_name': pb_en, 'id': pb_id, 'rel': pb_rel, 'age': int(pb_age)})
 
     prop_context = {
@@ -226,7 +228,7 @@ if has_property:
     }
 
 st.subheader("財產分配 (剩餘財產)")
-num_b = st.number_input("受益人人數", min_value=1, step=1, value=1, disabled=form_locked)
+num_b = st.number_input("受益人人數", min_value=1, step=1, value=1, key="num_b", disabled=form_locked)
 beneficiaries = []
 
 bh1, bh2, bh3, bh4, bh5, bh6, _bspacer = st.columns([2, 2, 2, 2, 1, 2, 1])
@@ -239,12 +241,12 @@ with bh6: st.markdown("<span style='font-size:13px;font-weight:600'>與立遺囑
 
 for i in range(int(num_b)):
     bc1, bc2, bc3, bc4, bc5, bc6, _bspacer2 = st.columns([2, 2, 2, 2, 1, 2, 1])
-    with bc1: b_share = st.text_input(f"s{i}", placeholder="全部/1/2/50%", key=f"s{i}", label_visibility="collapsed", disabled=form_locked)
-    with bc2: b_name = st.text_input(f"n{i}", key=f"n{i}", label_visibility="collapsed", disabled=form_locked)
-    with bc3: b_en = st.text_input(f"e{i}", key=f"e{i}", label_visibility="collapsed", disabled=form_locked)
-    with bc4: b_id = st.text_input(f"i{i}", key=f"i{i}", label_visibility="collapsed", disabled=form_locked)
-    with bc5: b_age = st.number_input(f"a{i}", min_value=0, max_value=120, step=1, key=f"a{i}", label_visibility="collapsed", disabled=form_locked)
-    with bc6: b_rel = st.text_input(f"r{i}", key=f"r{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc1: b_share = st.text_input(f"s{i}", placeholder="全部/1/2/50%", key=f"{st.session_state.form_key}_s{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc2: b_name = st.text_input(f"n{i}", key=f"{st.session_state.form_key}_n{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc3: b_en = st.text_input(f"e{i}", key=f"{st.session_state.form_key}_e{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc4: b_id = st.text_input(f"i{i}", key=f"{st.session_state.form_key}_i{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc5: b_age = st.number_input(f"a{i}", min_value=0, max_value=120, step=1, key=f"{st.session_state.form_key}_a{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc6: b_rel = st.text_input(f"r{i}", key=f"{st.session_state.form_key}_r{i}", label_visibility="collapsed", disabled=form_locked)
     beneficiaries.append({'share': b_share, 'name': b_name, 'en_name': b_en, 'id': b_id, 'rel': b_rel, 'age': int(b_age)})
 
 st.divider()
