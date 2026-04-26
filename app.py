@@ -2,6 +2,7 @@ import streamlit as st
 from fractions import Fraction
 from docxtpl import DocxTemplate
 from datetime import datetime
+import pytz
 import os
 import re
 import io
@@ -74,6 +75,9 @@ if 'downloaded' not in st.session_state:
 if 'confirm_reset' not in st.session_state:
     st.session_state.confirm_reset = False
 
+# Lock form if generated but not yet downloaded
+form_locked = st.session_state.generated and not st.session_state.downloaded
+
 def parse_share(share_str):
     try:
         s = share_str.strip()
@@ -121,53 +125,60 @@ with st.sidebar:
 st.set_page_config(page_title="社區平安紙系統", layout="wide")
 st.title("⚖️ 社區平安紙自動化草擬系統")
 
+if form_locked:
+    st.markdown("""
+    <div style="background:#fff3e0;border:2px solid #e65100;border-radius:6px;padding:10px 16px;margin-bottom:10px;">
+    🔒 <b>表格已鎖定</b> — 請先下載平安紙，方可修改表格。Form is locked until you download the will.
+    </div>
+    """, unsafe_allow_html=True)
+
 # ── Section 1: Testator ───────────────────────────────────────────────
 st.header("1. 立遺囑人個人資料")
 c1, c2, c3, c4 = st.columns([2, 2, 2, 5])
 with c1:
-    t_name = st.text_input("中文姓名 *")
-    t_id = st.text_input("身份證號碼 * (如: A123456(7))")
+    t_name = st.text_input("中文姓名 *", disabled=form_locked)
+    t_id = st.text_input("身份證號碼 * (如: A123456(7))", disabled=form_locked)
 with c2:
-    t_en_name = st.text_input("英文姓名 *")
-    marital_status = st.selectbox("婚姻狀況 *", ["未婚", "已婚", "離婚", "喪偶"])
+    t_en_name = st.text_input("英文姓名 *", disabled=form_locked)
+    marital_status = st.selectbox("婚姻狀況 *", ["未婚", "已婚", "離婚", "喪偶"], disabled=form_locked)
 with c3:
     st.markdown("<span style='font-size:13px;font-weight:600'>職業 *</span>", unsafe_allow_html=True)
     occ_option = st.radio("職業", ["退休", "無業", "家庭主婦", "其他"],
                           horizontal=True, label_visibility="collapsed")
     if occ_option == "其他":
-        occupation = st.text_input("請輸入職業", placeholder="如：教師、律師")
+        occupation = st.text_input("請輸入職業", placeholder="如：教師、律師", disabled=form_locked)
     else:
         occupation = occ_option
         st.empty()
 with c4:
-    t_address = st.text_input("現居地址 *")
+    t_address = st.text_input("現居地址 *", disabled=form_locked)
 
 st.divider()
 
 # ── Section 2: Executor ───────────────────────────────────────────────
 st.header("2. 遺囑執行人資料")
 e1, e2, e3, e4, _spacer2 = st.columns([2, 2, 2, 2, 3])
-with e1: exec_name = st.text_input("執行人中文姓名 *")
-with e2: exec_en_name = st.text_input("執行人英文姓名 *")
-with e3: exec_id = st.text_input("執行人身份證號碼 *")
-with e4: exec_rel = st.text_input("與立遺囑人關係 *", placeholder="如：妻子")
+with e1: exec_name = st.text_input("執行人中文姓名 *", disabled=form_locked)
+with e2: exec_en_name = st.text_input("執行人英文姓名 *", disabled=form_locked)
+with e3: exec_id = st.text_input("執行人身份證號碼 *", disabled=form_locked)
+with e4: exec_rel = st.text_input("與立遺囑人關係 *", placeholder="如：妻子", disabled=form_locked)
 
-exec_over_21 = st.checkbox("✅ 確認執行人已年滿 21 歲 / Confirm executor is aged 21 or above *")
+exec_over_21 = st.checkbox("✅ 確認執行人已年滿 21 歲 / Confirm executor is aged 21 or above *", disabled=form_locked)
 
 st.divider()
 
 # ── Section 3: Distribution ───────────────────────────────────────────
 st.header("3. 資產分配安排")
-has_property = st.checkbox("是否有特定物業遺贈？")
+has_property = st.checkbox("是否有特定物業遺贈？", disabled=form_locked)
 
 prop_context = {}
 prop_beneficiaries = []
 if has_property:
     st.subheader("物業遺贈細節")
     pa1, _spacer3 = st.columns([4, 3])
-    with pa1: p_addr = st.text_input("物業地址 *")
+    with pa1: p_addr = st.text_input("物業地址 *", disabled=form_locked)
 
-    num_pb = st.number_input("物業受益人人數", min_value=1, step=1, value=1)
+    num_pb = st.number_input("物業受益人人數", min_value=1, step=1, value=1, disabled=form_locked)
 
     pbh1, pbh2, pbh3, pbh4, pbh5, pbh6, _pbspacer = st.columns([2, 2, 2, 1, 2, 2, 1])
     with pbh1: st.markdown("<span style='font-size:13px;font-weight:600'>分配比例 *</span>", unsafe_allow_html=True)
@@ -179,12 +190,12 @@ if has_property:
 
     for i in range(int(num_pb)):
         pbc1, pbc2, pbc3, pbc4, pbc5, pbc6, _pbspacer2 = st.columns([2, 2, 2, 1, 2, 2, 1])
-        with pbc1: pb_share = st.text_input(f"pb_s{i}", placeholder="全部/1/2/50%", key=f"pb_s{i}", label_visibility="collapsed")
-        with pbc2: pb_name = st.text_input(f"pb_n{i}", key=f"pb_n{i}", label_visibility="collapsed")
-        with pbc3: pb_en = st.text_input(f"pb_e{i}", key=f"pb_e{i}", label_visibility="collapsed")
-        with pbc4: pb_age = st.number_input(f"pb_a{i}", min_value=0, max_value=120, step=1, key=f"pb_a{i}", label_visibility="collapsed")
-        with pbc5: pb_id = st.text_input(f"pb_i{i}", key=f"pb_i{i}", label_visibility="collapsed")
-        with pbc6: pb_rel = st.text_input(f"pb_r{i}", key=f"pb_r{i}", label_visibility="collapsed")
+        with pbc1: pb_share = st.text_input(f"pb_s{i}", placeholder="全部/1/2/50%", key=f"pb_s{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc2: pb_name = st.text_input(f"pb_n{i}", key=f"pb_n{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc3: pb_en = st.text_input(f"pb_e{i}", key=f"pb_e{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc4: pb_age = st.number_input(f"pb_a{i}", min_value=0, max_value=120, step=1, key=f"pb_a{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc5: pb_id = st.text_input(f"pb_i{i}", key=f"pb_i{i}", label_visibility="collapsed", disabled=form_locked)
+        with pbc6: pb_rel = st.text_input(f"pb_r{i}", key=f"pb_r{i}", label_visibility="collapsed", disabled=form_locked)
         prop_beneficiaries.append({'share': pb_share, 'name': pb_name, 'en_name': pb_en, 'id': pb_id, 'rel': pb_rel, 'age': int(pb_age)})
 
     prop_context = {
@@ -199,7 +210,7 @@ if has_property:
     }
 
 st.subheader("財產分配 (剩餘財產)")
-num_b = st.number_input("受益人人數", min_value=1, step=1, value=1)
+num_b = st.number_input("受益人人數", min_value=1, step=1, value=1, disabled=form_locked)
 beneficiaries = []
 
 bh1, bh2, bh3, bh4, bh5, bh6, _bspacer = st.columns([2, 2, 2, 2, 1, 2, 1])
@@ -212,12 +223,12 @@ with bh6: st.markdown("<span style='font-size:13px;font-weight:600'>與立遺囑
 
 for i in range(int(num_b)):
     bc1, bc2, bc3, bc4, bc5, bc6, _bspacer2 = st.columns([2, 2, 2, 2, 1, 2, 1])
-    with bc1: b_share = st.text_input(f"s{i}", placeholder="全部/1/2/50%", key=f"s{i}", label_visibility="collapsed")
-    with bc2: b_name = st.text_input(f"n{i}", key=f"n{i}", label_visibility="collapsed")
-    with bc3: b_en = st.text_input(f"e{i}", key=f"e{i}", label_visibility="collapsed")
-    with bc4: b_id = st.text_input(f"i{i}", key=f"i{i}", label_visibility="collapsed")
-    with bc5: b_age = st.number_input(f"a{i}", min_value=0, max_value=120, step=1, key=f"a{i}", label_visibility="collapsed")
-    with bc6: b_rel = st.text_input(f"r{i}", key=f"r{i}", label_visibility="collapsed")
+    with bc1: b_share = st.text_input(f"s{i}", placeholder="全部/1/2/50%", key=f"s{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc2: b_name = st.text_input(f"n{i}", key=f"n{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc3: b_en = st.text_input(f"e{i}", key=f"e{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc4: b_id = st.text_input(f"i{i}", key=f"i{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc5: b_age = st.number_input(f"a{i}", min_value=0, max_value=120, step=1, key=f"a{i}", label_visibility="collapsed", disabled=form_locked)
+    with bc6: b_rel = st.text_input(f"r{i}", key=f"r{i}", label_visibility="collapsed", disabled=form_locked)
     beneficiaries.append({'share': b_share, 'name': b_name, 'en_name': b_en, 'id': b_id, 'rel': b_rel, 'age': int(b_age)})
 
 st.divider()
@@ -378,7 +389,7 @@ with col_generate:
                 st.stop()
 
         try:
-            now = datetime.now()
+            now = datetime.now(pytz.timezone('Asia/Hong_Kong'))
             if has_property and len(beneficiaries) == 1: template_name = "Will_P_S.docx"
             elif has_property and len(beneficiaries) > 1: template_name = "Will_P_M.docx"
             elif not has_property and len(beneficiaries) == 1: template_name = "Will_B_S.docx"
@@ -408,9 +419,7 @@ with col_generate:
             st.session_state.downloaded = False
             st.session_state.file_name = file_name
             st.session_state.file_data = buffer.getvalue()
-
-            st.success(f"✅ 完成！請點擊下方按鈕下載。")
-            st.balloons()
+            st.rerun()
 
         except Exception as e:
             st.error(f"系統出錯：{e}")
@@ -425,29 +434,75 @@ with col_clear:
             st.session_state.confirm_reset = False
             st.rerun()
 
-# ── Download button ───────────────────────────────────────────────────
-if st.session_state.generated:
+# ── Download banner (prominent, full width) ───────────────────────────
+if st.session_state.generated and not st.session_state.downloaded:
+    st.markdown("""
+    <div style="
+        background: #1a3a5c;
+        border: 3px solid #c9973a;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: center;
+    ">
+        <div style="color: #c9973a; font-size: 28px; margin-bottom: 8px;">⬇️</div>
+        <div style="color: white; font-size: 18px; font-weight: bold; margin-bottom: 6px;">
+            平安紙已生成！請立即下載
+        </div>
+        <div style="color: #aac4e0; font-size: 13px;">
+            Will has been generated. Please download before proceeding.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     dl = st.download_button(
-        label="📥 下載平安紙",
+        label="📥 立即下載平安紙",
+        data=st.session_state.file_data,
+        file_name=st.session_state.file_name,
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        use_container_width=True,
+        type="primary"
+    )
+    if dl:
+        st.session_state.downloaded = True
+        st.success("✅ 已下載！您現在可以清除表格或生成下一份平安紙。")
+
+elif st.session_state.generated and st.session_state.downloaded:
+    st.success("✅ 已下載！您現在可以清除表格或生成下一份平安紙。")
+    # Allow re-download just in case
+    st.download_button(
+        label="📥 重新下載",
         data=st.session_state.file_data,
         file_name=st.session_state.file_name,
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         use_container_width=False
     )
-    if dl:
-        st.session_state.downloaded = True
 
 # ── Reset confirmation ────────────────────────────────────────────────
 if st.session_state.confirm_reset:
-    st.warning("⚠️ 您尚未下載平安紙！確定要清除所有欄位嗎？")
-    conf1, conf2 = st.columns([1, 5])
+    st.markdown("""
+    <div style="
+        background: #fff3e0;
+        border: 3px solid #e65100;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 10px 0;
+        text-align: center;
+    ">
+        <div style="color: #e65100; font-size: 24px; margin-bottom: 8px;">⚠️</div>
+        <div style="color: #bf360c; font-size: 16px; font-weight: bold;">
+            您尚未下載平安紙！確定要清除所有欄位嗎？
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    conf1, conf2 = st.columns([1, 1])
     with conf1:
-        if st.button("✅ 確定清除", type="primary"):
-            st.session_state.generated = False
-            st.session_state.downloaded = False
+        if st.button("❌ 返回下載平安紙", use_container_width=True):
             st.session_state.confirm_reset = False
             st.rerun()
     with conf2:
-        if st.button("❌ 返回下載"):
+        if st.button("🗑 確定清除（不下載）", use_container_width=True):
+            st.session_state.generated = False
+            st.session_state.downloaded = False
             st.session_state.confirm_reset = False
             st.rerun()
