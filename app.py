@@ -89,6 +89,10 @@ def parse_share(share_str):
     except:
         return 0
 
+def validate_hkid(hkid):
+    pattern = r'^[A-Z]{1,2}\d{6}\([0-9A]\)$'
+    return re.match(pattern, hkid.strip().upper()) is not None
+
 def clear_form():
     """Clear all form fields from session state"""
     keys_to_clear = [k for k in st.session_state.keys()
@@ -129,7 +133,13 @@ with st.sidebar:
 # 介面設計
 # ==========================================
 st.set_page_config(page_title="社區平安紙系統", layout="wide")
-st.title("⚖️ 社區平安紙自動化草擬系統")
+
+# Title with version number
+title_col, ver_col = st.columns([10, 1])
+with title_col:
+    st.title("⚖️ 社區平安紙自動化草擬系統")
+with ver_col:
+    st.markdown("<div style='text-align:right;color:#888;font-size:12px;padding-top:20px'>20260426v1</div>", unsafe_allow_html=True)
 
 if form_locked:
     st.markdown("""
