@@ -16,7 +16,7 @@ OUTPUT_DIR = os.path.join(BASE_DIR, '已生成平安紙')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 RAW = "https://raw.githubusercontent.com/felixchancy-svg/Will-Drafting-System/main"
-VERSION = "20260426v4"
+VERSION = "20260426v5"
 
 # ── CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -389,7 +389,7 @@ with col_clear:
             st.rerun()
         else:
             st.session_state.clear()
-            st.session_state.fk = st.session_state.get('fk', 0) + 1
+            st.query_params.clear()
             st.rerun()
 
 # ── Download banner ───────────────────────────────────────────────────
@@ -434,5 +434,5 @@ if st.session_state.confirm_reset:
     with conf2:
         if st.button("🗑 確定清除（不下載）", use_container_width=True):
             st.session_state.clear()
-            st.session_state.fk = st.session_state.get('fk', 0) + 1
+            st.query_params.clear()
             st.rerun()
