@@ -12,11 +12,9 @@ import io
 # ==========================================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(BASE_DIR, '已生成平安紙')
-os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 RAW = "https://raw.githubusercontent.com/felixchancy-svg/Will-Drafting-System/main"
-VERSION = "20260426v5"
+VERSION = "20260426v7"
 
 # ── CSS ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -62,17 +60,38 @@ form_locked = st.session_state.generated and not st.session_state.downloaded
 fk = st.session_state.fk  # shorthand
 
 def parse_share(s):
+    """Parse share as Fraction for exact math"""
     try:
         s = s.strip()
-        if s in ['全部', 'all', 'ALL']: return 1.0
-        if '%' in s: return float(s.replace('%', '')) / 100
-        return float(Fraction(s))
-    except: return 0
+        if s in ['全部', 'all', 'ALL']: return Fraction(1)
+        if '%' in s: return Fraction(int(s.replace('%', '')), 100)
+        return Fraction(s)
+    except: return Fraction(0)
 
 def validate_hkid(hkid):
-    return re.match(r'^[A-Z]{1,2}\d{6}\([0-9A]\)$', hkid.strip().upper()) is not None
+    """Validate HKID format AND Modulo 11 checksum"""
+    hkid = hkid.strip().upper()
+    if not re.match(r'^[A-Z]{1,2}\d{6}\([0-9A]\)$', hkid):
+        return False
+    # Strip brackets and pad single letter with space
+    clean = hkid.replace('(', '').replace(')', '')
+    if len(clean) == 8:
+        clean = ' ' + clean
+    def char_val(c):
+        return 36 if c == ' ' else ord(c) - 55  # A=10...Z=35
+    total = char_val(clean[0]) * 9 + char_val(clean[1]) * 8
+    for i in range(6):
+        total += int(clean[2+i]) * (7 - i)
+    remainder = total % 11
+    expected = 'A' if remainder == 1 else str(11 - remainder) if remainder != 0 else '0'
+    return clean[8] == expected
+
+def sanitize_filename(name):
+    """Remove illegal filename characters"""
+    return re.sub(r'[\\/*?:"<>|]', '', name).strip()
 
 def do_clear():
+    """Increment fk so all widget keys change — Streamlit remounts them blank"""
     st.session_state.fk += 1
     st.session_state.generated = False
     st.session_state.downloaded = False
@@ -336,8 +355,8 @@ with col_generate:
         # Property share validation
         if has_property and len(prop_beneficiaries) > 1:
             pb_total = sum(parse_share(pb['share']) for pb in prop_beneficiaries)
-            if abs(pb_total - 1.0) > 0.0001:
-                st.error(f"❌ 物業受益人比例總和為 {pb_total*100:.1f}%，必須等於 100%。")
+            if pb_total != Fraction(1):
+                st.error(f"❌ 物業受益人比例總和為 {pb_total}，必須等於 1（100%）。")
                 st.stop()
 
         # Residual share validation
@@ -345,8 +364,8 @@ with col_generate:
         skip = len(beneficiaries) == 1 and all_shares[0] in ['全部', 'all', 'ALL']
         if not skip:
             total = sum(parse_share(b['share']) for b in beneficiaries)
-            if abs(total - 1.0) > 0.0001:
-                st.error(f"❌ 比例總和為 {total*100:.1f}%，必須等於 100%。")
+            if total != Fraction(1):
+                st.error(f"❌ 比例總和為 {total}，必須等於 1（100%）。")
                 st.stop()
 
         try:
@@ -366,10 +385,11 @@ with col_generate:
                 'year': str(now.year), 'month': str(now.month), 'day': str(now.day)
             }
             doc.render(context)
-            file_name = f"{t_name}_平安紙_{now.strftime('%Y%m%d')}.docx"
-            file_path = os.path.join(OUTPUT_DIR, file_name)
-            doc.save(file_path)
+            # 3. Sanitize filename to prevent crashes
+            safe_name = sanitize_filename(t_name)
+            file_name = f"{safe_name}_平安紙_{now.strftime('%Y%m%d')}.docx"
 
+            # 1. Generate in memory only — no disk save (privacy)
             buffer = io.BytesIO()
             doc.save(buffer)
             buffer.seek(0)
@@ -388,7 +408,7 @@ with col_clear:
             st.session_state.confirm_reset = True
             st.rerun()
         else:
-            st.session_state.clear()
+            do_clear()
             st.query_params.clear()
             st.rerun()
 
@@ -410,8 +430,7 @@ if st.session_state.generated and not st.session_state.downloaded:
         use_container_width=True, type="primary"
     )
     if dl:
-        st.session_state.clear()
-        st.session_state.fk = st.session_state.get('fk', 0) + 1
+        do_clear()
         st.rerun()
 
 elif st.session_state.generated and st.session_state.downloaded:
@@ -433,6 +452,6 @@ if st.session_state.confirm_reset:
             st.rerun()
     with conf2:
         if st.button("🗑 確定清除（不下載）", use_container_width=True):
-            st.session_state.clear()
+            do_clear()
             st.query_params.clear()
             st.rerun()
